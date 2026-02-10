@@ -4,15 +4,8 @@
 
 An unofficial Python library for [Sphero](https://sphero.com/) toys that supports its Version 2 Bluetooth low energy API described [here](https://sdk.sphero.com/docs/api_spec/general_api/). Toys that are supported includes (implemented ones are checked):
 
-- [x] Sphero 2.0 / SPRK
-- [x] Sphero Ollie
 - [x] Sphero BB-8
 - [x] Sphero BB-9E
-- [x] Sphero R2-D2 / R2-Q5
-- [x] Sphero BOLT (In Progress)
-- [x] Sphero SPRK+ / SPRK 2.0
-- [x] Sphero Mini
-- [x] Sphero RVR
 
 Current Progress:
 - Found a better way to decompile, fixing a few things like Controls, Command Queueing, and Waiting for responses
