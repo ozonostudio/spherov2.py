@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BB-8 Ultimate</title>
+    <style>
+        /* ESTILOS GENERALES (Tema Dark Star Wars) */
+        body {
+            background-color: #0b1d2a; color: #5bd1d7;
+            font-family: 'Segoe UI', sans-serif; text-align: center;
+            margin: 0; padding: 0; user-select: none; overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, #152a38 0%, #050a0f 100%);
+            height: 100vh; display: flex; flex-direction: column;
+        }
+
+        /* BARRA SUPERIOR */
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: rgba(0,0,0,0.6);
+            border-bottom: 1px solid #e67e22; z-index: 10;
+        }
+
+        .status-badge {
+            display: flex; align-items: center; gap: 8px; font-size: 0.8em;
+            font-weight: bold; letter-spacing: 1px; color: #7f8c8d;
+        }
+        .led-dot { width: 10px; height: 10px; background: #c0392b; border-radius: 50%; box-shadow: 0 0 5px #c0392b; transition: 0.3s;}
+        .led-dot.on { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .connected-text { color: #2ecc71; }
+
+        .btn-settings { font-size: 1.5em; background: none; border: none; color: #e67e22; cursor: pointer; }
+
+        /* MODAL CONFIGURACIÓN */
+        #settings-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+        }
+        .settings-card {
+            background: #1e272e; padding: 30px; border-radius: 15px; width: 80%; max-width: 400px;
+            border: 1px solid #e67e22; box-shadow: 0 0 30px rgba(230, 126, 34, 0.2);
+        }
+        .setting-row { margin-bottom: 25px; text-align: left; }
+        .setting-label { display: block; margin-bottom: 10px; color: #aaa; font-size: 0.9em; text-transform: uppercase;}
+        input[type=range] { width: 100%; height: 8px; border-radius: 5px; background: #444; accent-color: #e67e22; }
+        input[type=color] { width: 100%; height: 40px; border: none; cursor: pointer; background: none;}
+
+        .close-settings { margin-top: 20px; padding: 10px 30px; background: #e67e22; border: none; color: white; font-weight: bold; border-radius: 5px; font-size: 1.1em;}
+
+        /* ÁREA DE TRABAJO */
+        .workspace { flex-grow: 1; display: flex; justify-content: space-around; align-items: center; padding: 20px; }
+
+        /* CONTROL CABEZA (DRON) */
+        #drone-control {
+            width: 180px; height: 180px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03); border: 2px dashed #5bd1d7;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #bb8-graphic {
+            width: 120px; height: 120px; background: #ecf0f1; border-radius: 50%; position: relative;
+            border: 5px solid #e67e22; pointer-events: none; transition: transform 0.1s linear;
+        }
+        #bb8-graphic::after {
+            content: ''; position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 40px; background: #2c3e50; border-radius: 50%; border: 3px solid #e67e22;
+        }
+
+        /* JOYSTICK */
+        #joystick-zone {
+            width: 180px; height: 180px; background: radial-gradient(circle, #34495e 0%, #111 100%);
+            border: 2px solid #7f8c8d; border-radius: 50%; position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+        }
+        #stick {
+            width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, #e67e22, #d35400);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); border: 2px solid #fff; box-shadow: 0 0 10px #000;
+        }
+
+        /* BARRA ANIMACIONES */
+        .bottom-bar { padding: 20px; display: flex; gap: 20px; justify-content: center; background: rgba(0,0,0,0.3);}
+        .anim-btn {
+            width: 60px; height: 60px; border-radius: 50%; border: 2px solid #5bd1d7;
+            background: rgba(0,0,0,0.4); color: white; font-size: 1.8em;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.2s;
+        }
+        .anim-btn:active { background: #5bd1d7; color: #000; transform: scale(0.9); }
+
+        /* MENÚ CONEXIÓN */
+        #conn-menu {
+            position: absolute; top: 60px; right: 20px; background: #1e272e;
+            border: 1px solid #7f8c8d; border-radius: 8px; padding: 10px; display: none; z-index: 50; width: 220px;
+        }
+        .conn-btn {
+            width: 100%; padding: 12px; margin-top: 5px; border: none; border-radius: 5px;
+            font-weight: bold; cursor: pointer; color: white; transition: 0.2s;
+        }
+        .btn-green { background: #27ae60; }
+        .btn-red { background: #c0392b; }
+        #device-list li { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; text-align: left; color: #fff;}
+        #device-list li:hover { background: #333; }
+        #scan-msg { padding: 10px; color: #e67e22; display: none; }
+
+    </style>
+</head>
+<body>
+
+    <!-- BARRA SUPERIOR -->
+    <div class="top-bar">
+        <div class="status-badge">
+            <div id="led-dot" class="led-dot"></div>
+            <span id="status-text">OFFLINE</span>
+        </div>
+        <div style="display:flex; gap: 15px; align-items: center;">
+            <button id="main-conn-btn" class="conn-btn btn-green" style="width: auto; padding: 8px 15px; font-size: 0.9em;" onclick="toggleConnection()">CONECTAR</button>
+            <button class="btn-settings" onclick="toggleSettings()">⚙️</button>
+        </div>
+    </div>
+
+    <!-- MENÚ FLOTANTE DE DISPOSITIVOS -->
+    <div id="conn-menu">
+        <div style="font-size:0.8em; color:#aaa; margin-bottom:5px; text-align: left;">DISPOSITIVOS CERCANOS</div>
+        <ul id="device-list" style="list-style:none; padding:0; margin:0;"></ul>
+        <div id="scan-msg">Buscando BB-8...</div>
+    </div>
+
+    <!-- MODAL CONFIGURACIÓN -->
+    <div id="settings-modal">
+        <div class="settings-card">
+            <h2 style="color:#e67e22; margin-top:0;">Configuración</h2>
+
+            <div class="setting-row">
+                <span class="setting-label">Velocidad Máxima Joystick</span>
+                <input type="range" id="speedSlider" min="50" max="255" value="150">
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-label">Color del LED</span>
+                <input type="color" id="colorPicker" value="#ffffff" onchange="updateLights()">
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-label">Intensidad (Brillo)</span>
+                <input type="range" id="intensitySlider" min="0" max="100" value="100" oninput="updateLights()">
+            </div>
+
+            <button class="close-settings" onclick="toggleSettings()">GUARDAR Y SALIR</button>
+        </div>
+    </div>
+
+    <!-- ÁREA DE TRABAJO -->
+    <div class="workspace">
+        <!-- DRON (CABEZA) -->
+        <div style="text-align:center;">
+            <div style="margin-bottom:10px; font-size:0.8em; letter-spacing:2px; color:#5bd1d7;">CABEZA</div>
+            <div id="drone-control"><div id="bb8-graphic"></div></div>
+        </div>
+
+        <!-- JOYSTICK -->
+        <div style="text-align:center;">
+            <div style="margin-bottom:10px; font-size:0.8em; letter-spacing:2px; color:#e67e22;">MOVIMIENTO</div>
+            <div id="joystick-zone"><div id="stick"></div></div>
+        </div>
+    </div>
+
+    <!-- BARRA INFERIOR (ANIMACIONES) -->
+    <div class="bottom-bar">
+        <div class="anim-btn" onclick="anim(4)">👍</div>
+        <div class="anim-btn" onclick="anim(1)">👎</div>
+        <div class="anim-btn" onclick="anim(9)">🤩</div>
+        <div class="anim-btn" onclick="anim(26)">💃</div>
+    </div>
+
+    <script>
+        let isConnected = false;
+
+        // --- GESTIÓN DE CONEXIÓN ---
+        function toggleConnection() {
+            if (isConnected) {
+                // DESCONECTAR
+                fetch('/disconnect', {method:'POST'})
+                .then(r=>r.json()).then(d => {
+                    if(d.status === 'success') {
+                        setConnectedState(false);
+                    }
+                });
+            } else {
+                // ABRIR MENÚ DE ESCANEO
+                let menu = document.getElementById('conn-menu');
+                if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+
+                menu.style.display = 'block';
+                document.getElementById('device-list').innerHTML = "";
+                document.getElementById('scan-msg').style.display = 'block';
+
+                fetch('/scan').then(r=>r.json()).then(d => {
+                    document.getElementById('scan-msg').style.display = 'none';
+                    let list = document.getElementById('device-list');
+                    if(d.devices.length === 0) list.innerHTML = "<li style='color:#c0392b'>No encontrado</li>";
+
+                    d.devices.forEach(dev => {
+                        let li = document.createElement('li');
+                        li.innerText = dev.name;
+                        li.onclick = () => doConnect(dev.address);
+                        list.appendChild(li);
+                    });
+                });
+            }
+        }
+
+        function doConnect(addr) {
+            document.getElementById('conn-menu').style.display = 'none';
+            document.getElementById('main-conn-btn').innerText = "CONECTANDO...";
+
+            fetch('/connect_to', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({address:addr})})
+            .then(r=>r.json()).then(res => {
+                if(res.status === 'success') {
+                    setConnectedState(true);
+                    updateLights(); // Aplicar luces guardadas
+                } else {
+                    document.getElementById('main-conn-btn').innerText = "ERROR";
+                    setTimeout(() => setConnectedState(false), 2000);
+                }
+            });
+        }
+
+        function setConnectedState(state) {
+            isConnected = state;
+            let btn = document.getElementById('main-conn-btn');
+            let led = document.getElementById('led-dot');
+            let txt = document.getElementById('status-text');
+
+            if (state) {
+                btn.innerText = "DESCONECTAR";
+                btn.className = "conn-btn btn-red";
+                led.classList.add('on');
+                txt.innerText = "ONLINE";
+                txt.classList.add('connected-text');
+            } else {
+                btn.innerText = "CONECTAR";
+                btn.className = "conn-btn btn-green";
+                led.classList.remove('on');
+                txt.innerText = "OFFLINE";
+                txt.classList.remove('connected-text');
+            }
+        }
+
+        // --- CONFIGURACIÓN ---
+        function toggleSettings() {
+            let m = document.getElementById('settings-modal');
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function updateLights() {
+            let color = document.getElementById('colorPicker').value;
+            let intensity = document.getElementById('intensitySlider').value;
+
+            if(isConnected) {
+                fetch('/light/set', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ color: color, intensity: intensity })
+                });
+            }
+        }
+
+        // --- CABEZA (DIAL) ---
+        const drone = document.getElementById('drone-control');
+        const graphic = document.getElementById('bb8-graphic');
+        let rotating = false, lastHead = 0;
+
+        function rotate(x, y) {
+            let r = drone.getBoundingClientRect();
+            let ang = Math.atan2(y - (r.top+r.height/2), x - (r.left+r.width/2));
+            let deg = (ang * 180 / Math.PI) + 90;
+            if (deg < 0) deg += 360;
+            graphic.style.transform = `rotate(${deg}deg)`;
+
+            let now = Date.now();
+            if (now - lastHead > 80) {
+                lastHead = now;
+                fetch('/head/rotate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({angle:Math.floor(deg)})});
+            }
+        }
+        drone.addEventListener('touchstart', e=>{rotating=true; e.preventDefault()});
+        window.addEventListener('touchend', ()=>rotating=false);
+        drone.addEventListener('touchmove', e=>{if(rotating){e.preventDefault(); rotate(e.touches[0].clientX, e.touches[0].clientY)}});
+        // Mouse
+        drone.addEventListener('mousedown', ()=>rotating=true);
+        window.addEventListener('mouseup', ()=>rotating=false);
+        window.addEventListener('mousemove', e=>{if(rotating) rotate(e.clientX, e.clientY)});
+
+        // --- JOYSTICK ---
+        const stick = document.getElementById('stick');
+        const zone = document.getElementById('joystick-zone');
+        let dragging = false, lastDrive = 0;
+
+        function drive(x, y) {
+            let r = zone.getBoundingClientRect();
+            let dx = x - (r.left+r.width/2), dy = y - (r.top+r.height/2);
+            let dist = Math.min(Math.sqrt(dx*dx+dy*dy), 70);
+            let ang = Math.atan2(dy, dx);
+            stick.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
+
+            let deg = (ang * 180 / Math.PI) + 90;
+            if(deg < 0) deg += 360;
+
+            let maxSpeed = document.getElementById('speedSlider').value;
+            let speed = Math.floor((dist/70)*maxSpeed);
+
+            let now = Date.now();
+            if (now - lastDrive > 100 && speed !== 0) {
+                lastDrive = now;
+                fetch('/drive', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({angle:Math.floor(deg), speed:speed})});
+            }
+        }
+        zone.addEventListener('touchstart', e=>{dragging=true; e.preventDefault()});
+        window.addEventListener('touchend', ()=>{dragging=false; stick.style.transform=`translate(-50%,-50%)`; fetch('/drive', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({angle:0,speed:0})})});
+        zone.addEventListener('touchmove', e=>{if(dragging){e.preventDefault(); drive(e.touches[0].clientX, e.touches[0].clientY)}});
+        // Mouse
+        zone.addEventListener('mousedown', ()=>dragging=true);
+        window.addEventListener('mouseup', ()=>{if(dragging){dragging=false; stick.style.transform=`translate(-50%,-50%)`; fetch('/drive', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({angle:0,speed:0})})});
+        window.addEventListener('mousemove', e=>{if(dragging) drive(e.clientX, e.clientY)});
+
+        function anim(id) { fetch(`/anim/${id}`); }
+    </script>
+</body>
+</html>

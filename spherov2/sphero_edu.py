@@ -17,13 +17,6 @@ from spherov2.helper import bound_value, bound_color
 from spherov2.toy import Toy
 from spherov2.toy.bb8 import BB8
 from spherov2.toy.bb9e import BB9E
-from spherov2.toy.bolt import BOLT
-from spherov2.toy.mini import Mini
-from spherov2.toy.ollie import Ollie
-from spherov2.toy.r2d2 import R2D2
-from spherov2.toy.r2q5 import R2Q5
-from spherov2.toy.rvr import RVR
-from spherov2.toy.sphero import Sphero
 from spherov2.types import Color
 from spherov2.utils import ToyUtil
 
@@ -48,15 +41,7 @@ class EventType(Enum):
 
 class LedManager:
     def __init__(self, cls):
-        if cls is RVR:
-            self.__mapping = {
-                'front': ('left_headlight', 'right_headlight'),
-                'main': ('left', 'right', 'front', 'back')
-            }
-        elif cls in (R2D2, R2Q5, BOLT):
-            self.__mapping = {'main': ('front', 'back')}
-        else:
-            self.__mapping = {}
+        self.__mapping = {}
         self.__leds = defaultdict(partial(Color, 0, 0, 0))
 
     def __setitem__(self, key, value):
@@ -162,8 +147,6 @@ class SpheroEduAPI:
     def roll(self, heading: int, speed: int, duration: float):
         """Combines heading(0-360°), speed(-255-255), and duration to make the robot roll with one line of code.
         For example, to have the robot roll at 90°, at speed 200 for 2s, use ``roll(90, 200, 2)``"""
-        if isinstance(self.__toy, Mini) and speed != 0:
-            speed = round((speed + 126) * 2 / 3) if speed > 0 else round((speed - 126) * 2 / 3)
         self.__speed = bound_value(-255, speed, 255)
         self.__heading = heading % 360
         if speed < 0:
@@ -182,8 +165,6 @@ class SpheroEduAPI:
         which persists until you set a different speed. You can also read the real-time velocity value in centimeters
         per second reported by the motor encoders.
         """
-        if isinstance(self.__toy, Mini) and speed != 0:
-            speed = round((speed + 126) * 2 / 3) if speed > 0 else round((speed - 126) * 2 / 3)
         self.__speed = bound_value(-255, speed, 255)
         self.__update_speed()
 
@@ -213,14 +194,8 @@ class SpheroEduAPI:
 
         time_pre_rev = .45
 
-        if isinstance(self.__toy, RVR):
-            time_pre_rev = 1.5
-        elif isinstance(self.__toy, (R2D2, R2Q5)):
-            time_pre_rev = .7
-        elif isinstance(self.__toy, Mini):
-            time_pre_rev = .5
-        elif isinstance(self.__toy, Ollie):
-            time_pre_rev = .6
+        if isinstance(self.__toy, BB8):
+             time_pre_rev = .6
 
         abs_angle = abs(angle)
         duration = max(duration, time_pre_rev * abs_angle / 360)
@@ -249,7 +224,7 @@ class SpheroEduAPI:
         to be on to function. However, you can control the motors using Motor Power with :func:`raw_motor` when
         the control system is off."""
         self.__stabilization = stabilize
-        if isinstance(self.__toy, (Sphero, Mini, Ollie, BB8, BB9E, BOLT)):
+        if isinstance(self.__toy, (BB8, BB9E)):
             ToyUtil.set_stabilization(self.__toy, stabilize)
 
     def __update_raw_motor(self):
@@ -286,11 +261,7 @@ class SpheroEduAPI:
         """
         Calibrates the compass
         """
-        if isinstance(self.__toy, BOLT):
-            self.__compass_zero = None
-            ToyUtil.calibrate_compass(self.__toy)
-            while self.__compass_zero is None:
-                time.sleep(0.1)
+        pass
 
     def set_compass_direction(self, direction:int):
         """
@@ -317,26 +288,16 @@ class SpheroEduAPI:
     # so there are some unique commands that only they can use.
     def set_dome_position(self, angle: float):
         """Rotates the dome on its axis, from -160° to 180°. For example, set to 45° using ``set_dome_position(45).``"""
-        if isinstance(self.__toy, (R2D2, R2Q5)):
-            ToyUtil.set_head_position(self.__toy, bound_value(-160., angle, 180.))
+        pass
 
     def set_stance(self, stance: Stance):
         """Changes the stance between bipod and tripod. Set to bipod using ``set_stance(Stance.Bipod)`` and
         to tripod using ``set_stance(Stance.Tripod)``. Tripod is required for rolling."""
-        if isinstance(self.__toy, (R2D2, R2Q5)):
-            if stance == Stance.Bipod:
-                ToyUtil.perform_leg_action(self.__toy, R2LegActions.TWO_LEGS)
-            elif stance == Stance.Tripod:
-                ToyUtil.perform_leg_action(self.__toy, R2LegActions.THREE_LEGS)
-            else:
-                raise ValueError(f'Stance {stance} is not supported')
+        pass
 
     def set_waddle(self, waddle: bool):
         """Turns the waddle walk on using `set_waddle(True)`` and off using ``set_waddle(False)``."""
-        if isinstance(self.__toy, (R2D2, R2Q5)):
-            with self.__updating:
-                self.__stop_all()
-            ToyUtil.perform_leg_action(self.__toy, R2LegActions.WADDLE if waddle else R2LegActions.STOP)
+        pass
 
     # Lights: control the color and brightness of LEDs on a robot.
     def set_main_led(self, color: Color):
@@ -352,9 +313,7 @@ class SpheroEduAPI:
 
         Set this using RGB (red, green, blue) values on a scale of 0 - 255. For example, the magenta color is expressed
         as ``set_front_color(Color(239, 0, 255))``."""
-        if isinstance(self.__toy, (R2D2, R2Q5, BOLT, RVR)):
-            self.__leds['front'] = bound_color(color, self.__leds['front'])
-            ToyUtil.set_front_led(self.__toy, **self.__leds['front']._asdict())
+        pass
 
     def set_back_led(self, color: Union[Color, int]):
         """For older Sphero:
@@ -377,9 +336,6 @@ class SpheroEduAPI:
         if isinstance(color, int):
             self.__leds['back'] = Color(0, 0, bound_value(0, color, 255))
             ToyUtil.set_back_led_brightness(self.__toy, self.__leds['back'].b)
-        elif isinstance(self.__toy, (R2D2, R2Q5, BOLT, RVR, Mini)):
-            self.__leds['back'] = bound_color(color, self.__leds['back'])
-            ToyUtil.set_back_led(self.__toy, **self.__leds['back']._asdict())
 
     def fade(self, from_color: Color, to_color: Color, duration: float):
         """Changes the main LED lights from one color to another over a period of seconds. For example, to fade from
@@ -419,76 +375,49 @@ class SpheroEduAPI:
         fps
         transition to true if fade between frames
         """
-        if isinstance(self.__toy, BOLT):
-            frame_indexes = []
-            for frame in frames:
-                compressed_frame = []
-                for idx in range(4):
-                    for row_idx in range(7, -1, -1):
-                        res = 0
-                        for col_idx in range(8):
-                            bit = (frame[row_idx][col_idx] & 1 << idx) >> idx
-                            res |= bit << (7 - col_idx)
-                        compressed_frame.append(res)
-                ToyUtil.save_compressed_frame_player64_bit_frame(self.__toy, self.__frame_index, compressed_frame)
-                frame_indexes.append(self.__frame_index)
-                self.__frame_index += 1
-            palette_colors = []
-            for color in palette:
-                palette_colors += list(color._asdict().values())
-            ToyUtil.save_compressed_frame_player_animation(self.__toy, self.__animation_index, fps, transition, palette_colors, frame_indexes)
-            self.__animation_index += 1
+        pass
 
     def play_matrix_animation(self, animation_id, loop=True):
         """
         Plays a matrix animation
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.play_compressed_frame_player_animation_with_loop_option(self.__toy, animation_id, loop)
+        pass
 
     def pause_matrix_animation(self):
         """
         Pause a matrix animation
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.pause_compressed_frame_player_animation(self.__toy)
+        pass
 
     def clear_matrix(self):
         """
         Clears a matrix animation
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.reset_compressed_frame_player_animation(self.__toy)
+        pass
 
     def resume_matrix_animation(self):
         """
         Resume a matrix animation
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.resume_compressed_frame_player_animation(self.__toy)
+        pass
 
     def override_matrix_animation_framerate(self, fps: int = 0):
         """
         Overrides animation fps
         """
-        if isinstance(self.__toy, BOLT):
-            self.__fps_override = fps
-            ToyUtil.override_compressed_frame_player_animation_global_settings(self.__toy, self.__fps_override, self.__fade_override)
+        pass
 
     def override_matrix_animation_transition(self, option:FadeOverrideOptions = FadeOverrideOptions.NONE):
         """
         Override animations transition
         """
-        if isinstance(self.__toy, BOLT):
-            self.__fade_override = option
-            ToyUtil.override_compressed_frame_player_animation_global_settings(self.__toy, self.__fps_override, self.__fade_override)
+        pass
 
     def set_matrix_rotation(self, rotation:FrameRotationOptions):
         """
         Rotates the led matrix
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.set_matrix_rotation(self.__toy, rotation)
+        pass
 
     def scroll_matrix_text(self, text: str, color: Color, fps: int, wait: bool):
         """
@@ -497,16 +426,13 @@ class SpheroEduAPI:
         Fps 1 to 30
         wait : if the programs wait until completion
         """
-        # TODO Implement wait
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.scroll_matrix_text(self.__toy, text, color, fps)
+        pass
 
     def set_matrix_character(self, character:str, color:Color):
         """
         Sets a character on the matrix with color specified
         """
-        if isinstance(self.__toy, BOLT):
-            ToyUtil.set_matrix_character(self.__toy, character, color)
+        pass
 
     def set_matrix_pixel(self, x: int, y: int, color: Color):
         """For Sphero BOLT: Changes the color of BOLT's matrix at X and Y value. 8x8
@@ -518,32 +444,12 @@ class SpheroEduAPI:
     def set_matrix_line(self, x1: int, y1: int, x2: int, y2: int, color: Color):
         """For Sphero BOLT: Changes the color of BOLT's matrix from x1,y1 to x2,y2 in a line. 8x8
         """
-        if isinstance(self.__toy, BOLT):
-            dx = x2 - x1
-            dy = y2 - y1
-            if (dx != 0 and dy != 0 and dx != dy) or (dx == 0 and dy == 0):
-                raise Exception("Can only draw straight lines and diagonals")
-            line_length = max(dx, dy)
-            for line_increment in range(line_length):
-                x_ = x1 + (dx / line_length) * line_increment
-                y_ = x1 + (dx / line_length) * line_increment
-                strMapLoc: str = str(x_) + ':' + str(y_)
-                self.__leds[strMapLoc] = bound_color(color, self.__leds[strMapLoc])
-            ToyUtil.set_matrix_line(self.__toy, x1, y1, x2, y2, color.r, color.g, color.b, is_user_color=False)
+        pass
 
     def set_matrix_fill(self, x1: int, y1: int, x2: int, y2: int, color: Color):
         """For Sphero BOLT: Changes the color of BOLT's matrix from x1,y1 to x2,y2 in a box. 8x8
         """
-        if isinstance(self.__toy, BOLT):
-            x_min = min(x1, x2)
-            x_max = max(x1, x2)
-            y_min = min(y1, y2)
-            y_max = max(y1, y2)
-            for x_ in range(x_min, x_max + 1):
-                for y_ in range(y_min, y_max + 1):
-                    strMapLoc: str = str(x_) + ':' + str(y_)
-                    self.__leds[strMapLoc] = bound_color(color, self.__leds[strMapLoc])
-            ToyUtil.set_matrix_fill(self.__toy, x1, y1, x2, y2, color.r, color.g, color.b, is_user_color=False)
+        pass
 
 
     # Sphero RVR Lights
@@ -551,33 +457,25 @@ class SpheroEduAPI:
         """Changes the color of the front left headlight LED on RVR. Set this using RGB (red, green, blue) values on a
         scale of 0 - 255. For example, the pink color is expressed as
         ``set_left_headlight_led(Color(253, 159, 255))``."""
-        if isinstance(self.__toy, RVR):
-            self.__leds['left_headlight'] = bound_color(color, self.__leds['left_headlight'])
-            ToyUtil.set_left_front_led(self.__toy, **self.__leds['left_headlight']._asdict())
+        pass
 
     def set_right_headlight_led(self, color: Color):
         """Changes the color of the front right headlight LED on RVR. Set this using RGB (red, green, blue) values on a
         scale of 0 - 255. For example, the blue color is expressed as
         ``set_right_headlight_led(0, 28, 255)``."""
-        if isinstance(self.__toy, RVR):
-            self.__leds['right_headlight'] = bound_color(color, self.__leds['right_headlight'])
-            ToyUtil.set_right_front_led(self.__toy, **self.__leds['right_headlight']._asdict())
+        pass
 
     def set_left_led(self, color: Color):
         """Changes the color of the LED on RVR's left side (which is the side with RVR's battery bay door). Set this
         using RGB (red, green, blue) values on a scale of 0 - 255. For example, the green color is expressed as
         ``set_left_led(Color(0, 255, 34))``."""
-        if isinstance(self.__toy, RVR):
-            self.__leds['left'] = bound_color(color, self.__leds['left'])
-            ToyUtil.set_battery_side_led(self.__toy, **self.__leds['left']._asdict())
+        pass
 
     def set_right_led(self, color: Color):
         """Changes the color of the LED on RVR's right side (which is the side with RVR's power button). Set this using
         RGB (red, green, blue) values on a scale of 0 - 255. For example, the red color is expressed as
         ``set_right_led(Color(255, 18, 0))``."""
-        if isinstance(self.__toy, RVR):
-            self.__leds['right'] = bound_color(color, self.__leds['right'])
-            ToyUtil.set_power_side_led(self.__toy, **self.__leds['right']._asdict())
+        pass
 
     # BB-9E Lights
     def set_dome_leds(self, brightness: int):
@@ -593,16 +491,12 @@ class SpheroEduAPI:
     def set_holo_projector_led(self, brightness: int):
         """Changes the brightness of the Holographic Projector white LED, from 0 to 255. For example, set it to full
         brightness using ``set_holo_projector_led(255)``."""
-        if isinstance(self.__toy, (R2D2, R2Q5)):
-            self.__leds['holo_projector'] = bound_value(0, brightness, 255)
-            ToyUtil.set_holo_projector(self.__toy, self.__leds['holo_projector'])
+        pass
 
     def set_logic_display_leds(self, brightness: int):
         """Changes the brightness of the Logic Display LEDs, from 0 to 255. For example, set it to full brightness
         using ``set_logic_display_leds(255)``."""
-        if isinstance(self.__toy, (R2D2, R2Q5)):
-            self.__leds['logic_display'] = bound_value(0, brightness, 255)
-            ToyUtil.set_logic_display(self.__toy, self.__leds['logic_display'])
+        pass
 
     # Sounds: Control sounds and words which can play from your programming device's speaker or the robot.
     def play_sound(self, sound: IntEnum):
@@ -615,13 +509,7 @@ class SpheroEduAPI:
 
     # Sensors: Querying sensor data allows you to react to real-time values coming from the robots' physical sensors.
     def __start_capturing_sensor_data(self):
-        if isinstance(self.__toy, RVR):
-            sensors = ['accelerometer', 'gyroscope', 'imu', 'locator', 'velocity', 'ambient_light', 'color_detection']
-            self.__sensor_name_mapping['imu'] = 'attitude'
-        elif isinstance(self.__toy, BOLT):
-            sensors = ["accel_one", 'accelerometer', 'ambient_light', 'attitude', "core_time", 'gyroscope', 'locator', "quaternion", 'velocity']
-        else:
-            sensors = ['attitude', 'accelerometer', 'gyroscope', 'locator', 'velocity']
+        sensors = ['attitude', 'accelerometer', 'gyroscope', 'locator', 'velocity']
         ToyUtil.enable_sensors(self.__toy, sensors)
 
     def _sensor_data_listener(self, sensor_data: Dict[str, Dict[str, float]]):
